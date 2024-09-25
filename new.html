@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Leaflet with OpenStreetMap</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+      body {
+        display: flex;
+        flex-direction: row;
+        height: 100vh;
+        margin: 0;
+      }
+      #map {
+        height: 100%;
+        width: 70%;
+      }
+      #info {
+        width: 30%;
+        padding: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      input {
+        width: 100%;
+        margin-bottom: 10px;
+      }
+      #loading {
+        display: none;
+        color: blue;
+      }
+      .error {
+        color: red;
+        font-weight: bold;
+      }
+      button {
+        width: 100%;
+        padding: 10px;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div id="info">
+      <form action="save_coordinates.php" method="POST" id="coordinateForm">
+        <h2>Koordinat:</h2>
+        <input type="text" id="coords" name="coords" placeholder="Klik pada peta untuk menampilkan koordinat." readonly />
+        <h2>Alamat:</h2>
+        <input type="text" id="address" name="address" placeholder="Alamat akan ditampilkan di sini." readonly />
+        <p id="loading">Mengambil alamat...</p>
+        <p id="error-message" class="error" style="display: none"></p>
+        <!-- <button type="submit" id="saveBtn">Simpan ke Database</button> -->
+      </form>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+      var map = L.map("map").setView([1.3241, 124.8391], 13) // Set view to Tomohon
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors",
+      }).addTo(map)
+
+      var marker = null
+
+      map.on("click", function (e) {
+        if (marker) {
+          marker.setLatLng(e.latlng)
+        } else {
+          marker = L.marker(e.latlng).addTo(map)
+        }
+
+        document.getElementById("coords").value = "Lat: " + e.latlng.lat.toFixed(6) + ", Lng: " + e.latlng.lng.toFixed(6)
+
+        const loadingElement = document.getElementById("loading")
+        const errorMessage = document.getElementById("error-message")
+        loadingElement.style.display = "block"
+        errorMessage.style.display = "none"
+
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${e.latlng.lat}&lon=${e.latlng.lng}&format=json`)
+          .then((response) => response.json())
+          .then((data) => {
+            loadingElement.style.display = "none"
+            const address = data.display_name || "Alamat tidak ditemukan"
+            document.getElementById("address").value = address
+
+            if (!address.includes("Tomohon")) {
+              errorMessage.innerText = "SISTEM INI KHUSUS KOTA TOMOHON."
+              errorMessage.style.display = "block"
+              map.removeLayer(marker)
+              marker = null
+            } else {
+              errorMessage.style.display = "none"
+            }
+          })
+          .catch((err) => {
+            loadingElement.style.display = "none"
+            document.getElementById("address").value = "Error mengambil alamat"
+            errorMessage.innerText = "Error mengambil alamat."
+            errorMessage.style.display = "block"
+          })
+      })
+    </script>
+  </body>
+</html>
